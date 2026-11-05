@@ -37,6 +37,19 @@ def summarize_csv(content: bytes) -> dict[str, object]:
 
     findings = []
 
+    if duplicate_count > 0:
+        findings.append(
+            {
+                "code": "duplicate_rows",
+                "column": None,
+                "count": duplicate_count,
+                "message": (
+                    f"Dataset contains {duplicate_count} repeated row(s) "
+                    "after their first occurrence."
+                ),
+            }
+        )
+
     for name in df.columns:
         missing_count = int(df[name].isna().sum())
 
