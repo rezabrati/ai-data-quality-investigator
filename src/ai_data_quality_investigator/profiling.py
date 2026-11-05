@@ -53,6 +53,46 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                 }
             )
 
+        # Normalize text for comparison without modifying the dataset.
+        text = df[name].astype("string")
+
+        blank_count = int(
+            text.str.fullmatch(r"\s*", na=False).sum()
+        )
+
+        placeholder_count = int(
+            text.str.strip()
+            .str.casefold()
+            .isin(PLACEHOLDER_VALUES)
+            .sum()
+        )
+
+        if blank_count > 0:
+            findings.append(
+                {
+                    "code": "blank_values",
+                    "column": str(name),
+                    "count": blank_count,
+                    "message": (
+                        f"Column '{name}' contains "
+                        f"{blank_count} whitespace-only value(s)."
+                    ),
+                }
+            )
+
+        if placeholder_count > 0:
+            findings.append(
+                {
+                    "code": "placeholder_values",
+                    "column": str(name),
+                    "count": placeholder_count,
+                    "message": (
+                        f"Column '{name}' contains "
+                        f"{placeholder_count} potential placeholder value(s)."
+                    ),
+                }
+            )
+
     return {
         "row_count": row_count,
         "column_count": int(df.shape[1]),
