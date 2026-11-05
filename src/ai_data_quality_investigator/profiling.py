@@ -53,7 +53,7 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                 }
             )
 
-        # Normalize text for comparison without modifying the dataset.
+        # Normalize text for comparison without modifying dataset.
         text = df[name].astype("string")
 
         blank_count = int(
