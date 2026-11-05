@@ -35,11 +35,30 @@ def summarize_csv(content: bytes) -> dict[str, object]:
     duplicate_count = int(df.duplicated().sum())
     duplicate_percent = round(duplicate_count / row_count * 100, 2)
 
+    findings = []
+
+    for name in df.columns:
+        missing_count = int(df[name].isna().sum())
+
+        if missing_count > 0:
+            findings.append(
+                {
+                    "code": "missing_values",
+                    "column": str(name),
+                    "count": missing_count,
+                    "message": (
+                        f"Column '{name}' contains "
+                        f"{missing_count} missing value(s)."
+                    ),
+                }
+            )
+
     return {
         "row_count": row_count,
         "column_count": int(df.shape[1]),
         "duplicate_row_count": duplicate_count,
         "duplicate_row_percent": duplicate_percent,
+        "findings": findings,
         "columns": [
             {
                 "name": str(name),
