@@ -48,6 +48,13 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                     float(df[name].isna().mean()) * 100,
                     2,
                 ),
+                # Count non-null values containing only whitespace.
+                "blank_count": int(
+                    df[name]
+                    .astype("string")
+                    .str.fullmatch(r"\s*", na=False)
+                    .sum()
+                ),
             }
             for name in df.columns
         ],
