@@ -31,10 +31,14 @@ def summarize_csv(content: bytes) -> dict[str, object]:
         raise ValueError("The CSV contains headers but no data rows.")
 
     row_count = len(df)
+    duplicate_count = int(df.duplicated().sum())
+    duplicate_percent = round(duplicate_count / row_count * 100, 2)
 
     return {
         "row_count": row_count,
         "column_count": int(df.shape[1]),
+        "duplicate_row_count": duplicate_count,
+        "duplicate_row_percent": duplicate_percent,
         "columns": [
             {
                 "name": str(name),
