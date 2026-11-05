@@ -35,6 +35,7 @@ def summarize_csv(content: bytes) -> dict[str, object]:
     duplicate_count = int(df.duplicated().sum())
     duplicate_percent = round(duplicate_count / row_count * 100, 2)
 
+    columns = []
     findings = []
 
     if duplicate_count > 0:
@@ -51,28 +52,14 @@ def summarize_csv(content: bytes) -> dict[str, object]:
         )
 
     for name in df.columns:
-        missing_count = int(df[name].isna().sum())
+        series = df[name]
+        text = series.astype("string")
 
-        if missing_count > 0:
-            findings.append(
-                {
-                    "code": "missing_values",
-                    "column": str(name),
-                    "count": missing_count,
-                    "message": (
-                        f"Column '{name}' contains "
-                        f"{missing_count} missing value(s)."
-                    ),
-                }
-            )
-
-        # Normalize text for comparison without modifying dataset.
-        text = df[name].astype("string")
-
+        # Calculate each measurement once.
+        missing_count = int(series.isna().sum())
         blank_count = int(
             text.str.fullmatch(r"\s*", na=False).sum()
         )
-
         placeholder_count = int(
             text.str.strip()
             .str.casefold()
@@ -80,66 +67,50 @@ def summarize_csv(content: bytes) -> dict[str, object]:
             .sum()
         )
 
-        if blank_count > 0:
-            findings.append(
-                {
-                    "code": "blank_values",
-                    "column": str(name),
-                    "count": blank_count,
-                    "message": (
-                        f"Column '{name}' contains "
-                        f"{blank_count} whitespace-only value(s)."
-                    ),
-                }
-            )
+        columns.append(
+            {
+                "name": str(name),
+                "dtype": str(series.dtype),
+                "missing_count": missing_count,
+                "missing_percent": round(
+                    missing_count / row_count * 100, 2
+                ),
+                "blank_count": blank_count,
+                "placeholder_count": placeholder_count,
+                "unique_count": int(series.nunique(dropna=True)),
+            }
+        )
 
-        if placeholder_count > 0:
-            findings.append(
-                {
-                    "code": "placeholder_values",
-                    "column": str(name),
-                    "count": placeholder_count,
-                    "message": (
-                        f"Column '{name}' contains "
-                        f"{placeholder_count} potential placeholder value(s)."
-                    ),
-                }
-            )
+        # Generate findings from the measurements above.
+        checks = [
+            ("missing_values", missing_count, "missing"),
+            ("blank_values", blank_count, "whitespace-only"),
+            (
+                "placeholder_values",
+                placeholder_count,
+                "potential placeholder",
+            ),
+        ]
+
+        for code, count, description in checks:
+            if count > 0:
+                findings.append(
+                    {
+                        "code": code,
+                        "column": str(name),
+                        "count": count,
+                        "message": (
+                            f"Column '{name}' contains "
+                            f"{count} {description} value(s)."
+                        ),
+                    }
+                )
 
     return {
         "row_count": row_count,
         "column_count": int(df.shape[1]),
         "duplicate_row_count": duplicate_count,
         "duplicate_row_percent": duplicate_percent,
+        "columns": columns,
         "findings": findings,
-        "columns": [
-            {
-                "name": str(name),
-                "dtype": str(df[name].dtype),
-                "missing_count": int(df[name].isna().sum()),
-                "missing_percent": round(
-                    float(df[name].isna().mean()) * 100,
-                    2,
-                ),
-                # Count non-null values containing only whitespace.
-                "blank_count": int(
-                    df[name]
-                    .astype("string")
-                    .str.fullmatch(r"\s*", na=False)
-                    .sum()
-                ),
-                # Match placeholders regardless of case or surrounding spaces.
-                "placeholder_count": int(
-                    df[name]
-                    .astype("string")
-                    .str.strip()
-                    .str.casefold()
-                    .isin(PLACEHOLDER_VALUES)
-                    .sum()
-                ),
-                # Count distinct values, excluding missing values.
-                "unique_count": int(df[name].nunique(dropna=True)),
-            }
-            for name in df.columns
-        ],
     }
