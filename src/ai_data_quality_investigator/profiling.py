@@ -65,6 +65,8 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                     .isin(PLACEHOLDER_VALUES)
                     .sum()
                 ),
+                # Count distinct values, excluding missing values.
+                "unique_count": int(df[name].nunique(dropna=True)),
             }
             for name in df.columns
         ],
