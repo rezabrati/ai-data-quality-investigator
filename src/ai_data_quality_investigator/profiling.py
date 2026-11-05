@@ -2,6 +2,7 @@ from io import BytesIO
 import csv
 import pandas as pd
 
+PLACEHOLDER_VALUES = {"unknown", "not provided", "not available"}
 
 def summarize_csv(content: bytes) -> dict[str, object]:
     """Read a CSV and describe its structure."""
@@ -53,6 +54,15 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                     df[name]
                     .astype("string")
                     .str.fullmatch(r"\s*", na=False)
+                    .sum()
+                ),
+                # Match placeholders regardless of case or surrounding spaces.
+                "placeholder_count": int(
+                    df[name]
+                    .astype("string")
+                    .str.strip()
+                    .str.casefold()
+                    .isin(PLACEHOLDER_VALUES)
                     .sum()
                 ),
             }
