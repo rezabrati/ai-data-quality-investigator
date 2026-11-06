@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile, Form
 from starlette.concurrency import run_in_threadpool
 from ai_data_quality_investigator.profiling import summarize_csv
+from typing import Literal
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -13,8 +14,25 @@ def health_check() -> dict[str, str]:
 
 
 @app.post("/datasets/upload")
-async def upload_dataset(file: UploadFile) -> dict[str, object]:
+async def upload_dataset(
+    file: UploadFile,
+    target_column: str | None = Form(default=None),
+    task_type: Literal["classification", "regression"] | None = Form(default=None),) -> dict[str, object]:
+    
     try:
+        # Treat an empty target name as unspecified.
+        target_column = (
+            target_column.strip() or None
+            if target_column is not None
+            else None
+        )
+
+        # Require both inputs together, or neither.
+        if (target_column is None) != (task_type is None):
+            raise HTTPException(
+                status_code=400,
+                detail="Provide both target_column and task_type, or neither.",
+            )
         # Check the extension; actual CSV parsing comes later.
         if not file.filename or not file.filename.lower().endswith(".csv"):
             raise HTTPException(
@@ -38,13 +56,20 @@ async def upload_dataset(file: UploadFile) -> dict[str, object]:
             )
 
         try:
-            summary = await run_in_threadpool(summarize_csv, content)
+            summary = await run_in_threadpool(
+                                                summarize_csv,
+                                                content,
+                                                target_column=target_column,
+                                                task_type=task_type,
+                                            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         return {
             "filename": file.filename,
             "size_mb": F"{round(len(content) / 1_000_000, 4)} MB",
+            "target_column": target_column,
+            "task_type": task_type,
             "summary": summary,
             "message": "CSV parsed successfully.",
         }

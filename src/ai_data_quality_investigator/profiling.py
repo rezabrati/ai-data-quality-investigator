@@ -1,10 +1,14 @@
 from io import BytesIO
 import csv
 import pandas as pd
+from typing import Literal
 
 PLACEHOLDER_VALUES = {"unknown", "not provided", "not available"}
 
-def summarize_csv(content: bytes) -> dict[str, object]:
+def summarize_csv(content: bytes,
+                  target_column: str | None = None,
+                  task_type: Literal["classification", "regression"] | None = None,) -> dict[str, object]:
+
     """Read a CSV and describe its structure."""
     try:
         # Inspect the beginning of the file to infer its delimiter.
@@ -34,6 +38,40 @@ def summarize_csv(content: bytes) -> dict[str, object]:
     row_count = len(df)
     duplicate_count = int(df.duplicated().sum())
     duplicate_percent = round(duplicate_count / row_count * 100, 2)
+
+    target_summary = None
+
+    if target_column is not None:
+        if target_column not in df.columns:
+            raise ValueError(
+                f"Target column '{target_column}' does not exist."
+            )
+
+        target = df[target_column]
+
+        target_summary = {
+            "column": target_column,
+            "task_type": task_type,
+            "missing_count": int(target.isna().sum()),
+        }
+
+        if task_type == "classification":
+            # Exclude null targets from class counts.
+            labeled = target.dropna()
+            counts = labeled.value_counts()
+
+            target_summary["labeled_count"] = int(len(labeled))
+            target_summary["class_count"] = int(len(counts))
+            target_summary["class_distribution"] = [
+                {
+                    "value": str(label),
+                    "count": int(count),
+                    "percent": round(
+                        int(count) / len(labeled) * 100, 2
+                    ),
+                }
+                for label, count in counts.items()
+            ]
 
     columns = []
     findings = []
@@ -78,6 +116,14 @@ def summarize_csv(content: bytes) -> dict[str, object]:
             finite = valid[~valid.isin([float("inf"), float("-inf")])]
 
             if not finite.empty:
+
+                # Skewness requires at least three observations.
+                # For constant data, it is undefined.
+                skewness = None
+
+                if len(finite) >= 3 and finite.nunique() > 1:
+                    skewness = float(finite.skew())
+
                 numeric_summary = {
                     "min": float(finite.min()),
                     "max": float(finite.max()),
@@ -92,6 +138,7 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                     "q3": float(finite.quantile(0.75)),
                     "finite_count": int(len(finite)),
                     "infinite_count": int(len(valid) - len(finite)),
+                    "skewness": skewness,
                 }
 
                 q1 = numeric_summary["q1"]
@@ -182,6 +229,7 @@ def summarize_csv(content: bytes) -> dict[str, object]:
 
     return {
         "row_count": row_count,
+        "target_summary": target_summary,
         "column_count": int(df.shape[1]),
         "duplicate_row_count": duplicate_count,
         "duplicate_row_percent": duplicate_percent,
