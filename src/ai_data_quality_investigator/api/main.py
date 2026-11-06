@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, Form
 from starlette.concurrency import run_in_threadpool
 from ai_data_quality_investigator.profiling import summarize_csv
 from typing import Literal
+from ai_data_quality_investigator.storage import save_dataset
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -65,6 +66,8 @@ async def upload_dataset(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+        dataset_id = await run_in_threadpool(save_dataset, content)
+
         return {
             "filename": file.filename,
             "size_mb": F"{round(len(content) / 1_000_000, 4)} MB",
@@ -72,6 +75,7 @@ async def upload_dataset(
             "task_type": task_type,
             "summary": summary,
             "message": "CSV parsed successfully.",
+            "dataset_id": dataset_id,
         }
 
     finally:

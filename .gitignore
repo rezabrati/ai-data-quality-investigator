@@ -19,3 +19,4 @@ wheels/
 
 # Local datasets
 test.csv
+data/
