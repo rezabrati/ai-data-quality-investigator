@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, Form
 from starlette.concurrency import run_in_threadpool
 from ai_data_quality_investigator.profiling import summarize_csv
 from typing import Literal
-from ai_data_quality_investigator.storage import save_dataset
+from uuid import UUID
+from ai_data_quality_investigator.storage import save_dataset, load_dataset
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -80,3 +81,31 @@ async def upload_dataset(
 
     finally:
         await file.close()
+
+@app.get("/datasets/{dataset_id}/profile")
+async def profile_saved_dataset(
+    dataset_id: UUID,
+) -> dict[str, object]:
+    try:
+        content = await run_in_threadpool(
+            load_dataset,
+            str(dataset_id),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found.",
+        ) from exc
+
+    try:
+        summary = await run_in_threadpool(summarize_csv, content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "dataset_id": str(dataset_id),
+        "summary": summary,
+    }
