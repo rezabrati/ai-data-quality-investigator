@@ -67,6 +67,33 @@ def summarize_csv(content: bytes) -> dict[str, object]:
             .sum()
         )
 
+        numeric_summary = None
+
+        if (
+            pd.api.types.is_numeric_dtype(series)
+            and not pd.api.types.is_bool_dtype(series)
+        ):
+            # Exclude missing and infinite values from statistics.
+            valid = series.dropna()
+            finite = valid[~valid.isin([float("inf"), float("-inf")])]
+
+            if not finite.empty:
+                numeric_summary = {
+                    "min": float(finite.min()),
+                    "max": float(finite.max()),
+                    "mean": float(finite.mean()),
+                    "median": float(finite.median()),
+                    "std": (
+                        float(finite.std())
+                        if len(finite) > 1
+                        else None
+                    ),
+                    "q1": float(finite.quantile(0.25)),
+                    "q3": float(finite.quantile(0.75)),
+                    "finite_count": int(len(finite)),
+                    "infinite_count": int(len(valid) - len(finite)),
+                }
+
         columns.append(
             {
                 "name": str(name),
@@ -78,6 +105,7 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                 "blank_count": blank_count,
                 "placeholder_count": placeholder_count,
                 "unique_count": int(series.nunique(dropna=True)),
+                "numeric_summary": numeric_summary,
             }
         )
 
