@@ -3,7 +3,7 @@ from starlette.concurrency import run_in_threadpool
 from ai_data_quality_investigator.profiling import summarize_csv
 from typing import Literal
 from uuid import UUID
-from ai_data_quality_investigator.storage import save_dataset, load_dataset
+from ai_data_quality_investigator.storage import save_dataset, load_dataset, load_metadata
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -67,7 +67,7 @@ async def upload_dataset(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        dataset_id = await run_in_threadpool(save_dataset, content)
+        dataset_id = await run_in_threadpool(save_dataset, content, target_column=target_column, task_type=task_type)
 
         return {
             "filename": file.filename,
@@ -86,6 +86,7 @@ async def upload_dataset(
 async def profile_saved_dataset(
     dataset_id: UUID,
 ) -> dict[str, object]:
+    # Load the CSV bytes before passing them to the profiler.
     try:
         content = await run_in_threadpool(
             load_dataset,
@@ -97,8 +98,19 @@ async def profile_saved_dataset(
             detail="Dataset not found.",
         ) from exc
 
+    # Restore the target settings saved with the CSV.
+    metadata = await run_in_threadpool(
+        load_metadata,
+        str(dataset_id),
+    )
+
     try:
-        summary = await run_in_threadpool(summarize_csv, content)
+        summary = await run_in_threadpool(
+            summarize_csv,
+            content,
+            target_column=metadata["target_column"],
+            task_type=metadata["task_type"],
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=400,

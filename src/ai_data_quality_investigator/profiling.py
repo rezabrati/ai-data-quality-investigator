@@ -10,6 +10,16 @@ def summarize_csv(content: bytes,
                   target_column: str | None = None,
                   task_type: Literal["classification", "regression"] | None = None,) -> dict[str, object]:
 
+    if (target_column is None) != (task_type is None):
+        raise ValueError(
+            "Provide both target_column and task_type, or neither."
+        )
+
+    if task_type not in (None, "classification", "regression"):
+        raise ValueError(
+            "task_type must be classification or regression."
+        )
+
     """Read a CSV and describe its structure."""
     try:
         # Inspect the beginning of the file to infer its delimiter.
