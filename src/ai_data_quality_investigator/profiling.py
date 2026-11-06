@@ -94,6 +94,52 @@ def summarize_csv(content: bytes) -> dict[str, object]:
                     "infinite_count": int(len(valid) - len(finite)),
                 }
 
+                q1 = numeric_summary["q1"]
+                q3 = numeric_summary["q3"]
+                iqr = q3 - q1
+
+                # Skip when the middle 50% has no spread.
+                if iqr > 0:
+                    lower_bound = q1 - 1.5 * iqr
+                    upper_bound = q3 + 1.5 * iqr
+
+                    outlier_count = int(
+                        (
+                            (finite < lower_bound)
+                            | (finite > upper_bound)
+                        ).sum()
+                    )
+
+                    numeric_summary["outliers"] = {
+                        "method": "iqr",
+                        "lower_bound": lower_bound,
+                        "upper_bound": upper_bound,
+                        "count": outlier_count,
+                        "percent": round(
+                            outlier_count / len(finite) * 100, 2
+                        ),
+                    }
+
+                    if outlier_count > 0:
+                        findings.append(
+                            {
+                                "code": "potential_outliers",
+                                "column": str(name),
+                                "count": outlier_count,
+                                "message": (
+                                    f"Column '{name}' contains "
+                                    f"{outlier_count} value(s) outside "
+                                    "the IQR boundaries. Review before changing."
+                                ),
+                            }
+                        )
+                else:
+                    numeric_summary["outliers"] = {
+                        "method": "iqr",
+                        "status": "skipped",
+                        "reason": "IQR is zero.",
+                    }
+
         columns.append(
             {
                 "name": str(name),
