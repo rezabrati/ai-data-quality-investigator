@@ -1,3 +1,4 @@
+from ai_data_quality_investigator.models import Finding
 from io import BytesIO
 import csv
 import pandas as pd
@@ -234,5 +235,8 @@ def summarize_csv(content: bytes,
         "duplicate_row_count": duplicate_count,
         "duplicate_row_percent": duplicate_percent,
         "columns": columns,
-        "findings": findings,
+        "findings": [
+            Finding.model_validate(finding).model_dump()
+            for finding in findings
+        ],
     }
