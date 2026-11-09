@@ -6,6 +6,42 @@ from typing import Literal
 
 PLACEHOLDER_VALUES = {"unknown", "not provided", "not available"}
 
+def read_csv_dataframe(content: bytes) -> pd.DataFrame:
+    """Parse CSV bytes using our shared delimiter and encoding rules."""
+    try:
+        sample = content[:65_536].decode(
+            "utf-8-sig",
+            errors="ignore",
+        )
+
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;")
+        except csv.Error as exc:
+            raise ValueError(
+                "Could not detect the separator. "
+                "Use a consistent comma or semicolon delimiter."
+            ) from exc
+
+        df = pd.read_csv(
+            BytesIO(content),
+            sep=dialect.delimiter,
+            encoding="utf-8-sig",
+        )
+
+    except UnicodeDecodeError as exc:
+        raise ValueError("Please upload a UTF-8 encoded CSV.") from exc
+    except pd.errors.EmptyDataError as exc:
+        raise ValueError("The CSV has no columns to read.") from exc
+    except pd.errors.ParserError as exc:
+        raise ValueError(
+            "The CSV could not be parsed. Check its format."
+        ) from exc
+
+    if df.empty:
+        raise ValueError("The CSV contains headers but no data rows.")
+
+    return df
+
 def summarize_csv(content: bytes,
                   target_column: str | None = None,
                   task_type: Literal["classification", "regression"] | None = None,) -> dict[str, object]:
@@ -20,31 +56,7 @@ def summarize_csv(content: bytes,
             "task_type must be classification or regression."
         )
 
-    """Read a CSV and describe its structure."""
-    try:
-        # Inspect the beginning of the file to infer its delimiter.
-        sample = content[:65_536].decode("utf-8-sig", errors="ignore")
-        try:
-            dialect = csv.Sniffer().sniff(sample, delimiters=",;")
-        except csv.Error as exc:
-            raise ValueError(
-                "Could not detect the separator. Use a consistent comma or semicolon delimiter."
-            ) from exc
-        df = pd.read_csv(
-            BytesIO(content),
-            sep=dialect.delimiter,
-            encoding="utf-8-sig",
-        )
-
-    except UnicodeDecodeError as exc:
-        raise ValueError("Please upload a UTF-8 encoded CSV.") from exc
-    except pd.errors.EmptyDataError as exc:
-        raise ValueError("The CSV has no columns to read.") from exc
-    except pd.errors.ParserError as exc:
-        raise ValueError("The CSV could not be parsed. Check its format.") from exc
-
-    if df.empty:
-        raise ValueError("The CSV contains headers but no data rows.")
+    df = read_csv_dataframe(content)
 
     row_count = len(df)
     duplicate_count = int(df.duplicated().sum())
