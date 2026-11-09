@@ -13,8 +13,12 @@ async def main(dataset_id: str) -> None:
 
         # Call our tool through MCP.
         result = await client.call_tool(
-            "profile_dataset",
-            {"dataset_id": dataset_id},
+            "get_category_frequencies",
+            {
+                "dataset_id": dataset_id,
+                "column": "poutcome",
+                "limit": 10,
+            },
         )
 
         if result.is_error:

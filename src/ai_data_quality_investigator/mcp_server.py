@@ -2,7 +2,7 @@ from uuid import UUID
 
 from mcp.server import MCPServer
 from starlette.concurrency import run_in_threadpool
-
+from ai_data_quality_investigator.investigation import category_frequencies
 from ai_data_quality_investigator.profiling import summarize_csv
 from ai_data_quality_investigator.storage import (
     load_dataset,
@@ -43,6 +43,38 @@ async def profile_dataset(dataset_id: UUID) -> dict[str, object]:
     return {
         "dataset_id": str(dataset_id),
         "summary": summary,
+    }
+
+@mcp.tool()
+async def get_category_frequencies(
+    dataset_id: UUID,
+    column: str,
+    limit: int = 10,
+) -> dict[str, object]:
+    """Return the most frequent parsed values in a dataset column.
+
+    Percentages use non-missing rows. Missing values are counted
+    separately. Values are not normalized or modified.
+    limit must be between 1 and 50.
+    """
+    try:
+        content = await run_in_threadpool(
+            load_dataset,
+            str(dataset_id),
+        )
+    except FileNotFoundError as exc:
+        raise ValueError("Dataset not found. Upload it first.") from exc
+
+    frequencies = await run_in_threadpool(
+        category_frequencies,
+        content,
+        column,
+        limit,
+    )
+
+    return {
+        "dataset_id": str(dataset_id),
+        **frequencies,
     }
 
 
