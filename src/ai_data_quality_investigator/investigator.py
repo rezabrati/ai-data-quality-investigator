@@ -30,7 +30,7 @@ def create_model() -> OpenAIChatCompletionsModel:
     )
 
 
-async def main(dataset_id: str) -> None:
+async def investigate_dataset(dataset_id: str) -> dict[str, object]:
     load_dotenv()
 
     # Validate before sending the ID to the model.
@@ -83,23 +83,22 @@ async def main(dataset_id: str) -> None:
             max_turns=5,
         )
 
-        for item in result.new_items:
-            if item.type == "tool_call_item":
-                print(
-                    f"Requested tool: {item.raw_item.name}\n"
-                    f"Arguments: {item.raw_item.arguments}"
-                )
+        tool_activity = [
+            {
+                "name": item.raw_item.name,
+                "arguments": item.raw_item.arguments,
+            }
+            for item in result.new_items
+            if item.type == "tool_call_item"
+        ]
 
         # Match tool results to the profiling calls that requested them.
         verified_profile = extract_verified_profile(result.new_items, dataset_id)
+
         if verified_profile is None:
-            raise SystemExit(
-                "Report withheld: no matching dataset profile was returned."
-            )
-        verified_categories = extract_verified_categories(result.new_items, dataset_id, verified_profile["summary"]["row_count"])
+            raise ValueError("Report withheld: no matching dataset profile was returned.")
         
-        print(render_profile_facts(verified_profile))
-        print(render_category_facts(verified_categories))
+        verified_categories = extract_verified_categories(result.new_items, dataset_id, verified_profile["summary"]["row_count"])
 
         reviewer = Agent(
             name="Follow-up Investigation Advisor",
@@ -128,10 +127,32 @@ async def main(dataset_id: str) -> None:
             ),
             max_turns=2,
         )
-        print("\nSuggested investigations — AI-generated:")
-        print(review_result.final_output)
+        return {
+            "dataset_id": dataset_id,
+            "profile": verified_profile,
+            "category_frequencies": verified_categories,
+            "suggested_investigations": review_result.final_output,
+            "tool_activity": tool_activity,
+        }
 
+async def main(dataset_id: str) -> None:
+    try:
+        investigation = await investigate_dataset(dataset_id)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
+    for activity in investigation["tool_activity"]:
+        print(
+            f"Requested tool: {activity['name']}\n"
+            f"Arguments: {activity['arguments']}"
+        )
+
+    print(render_profile_facts(investigation["profile"]))
+    print(render_category_facts(investigation["category_frequencies"]))
+
+    print("\nSuggested investigations — AI-generated:")
+    print(investigation["suggested_investigations"])
+    
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         raise SystemExit(
