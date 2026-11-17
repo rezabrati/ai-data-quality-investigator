@@ -73,3 +73,26 @@ def render_profile_facts(profile: dict) -> str:
         lines.append(f"- {finding['message']}")
 
     return "\n".join(lines)
+
+def render_category_facts(frequencies: dict | None) -> str:
+    """Render category-tool results without LLM interpretation."""
+    if frequencies is None:
+        return "No matching category-frequency result available."
+
+    lines = [
+        f"CATEGORY FREQUENCIES: {frequencies['column']}",
+        f"Percentage basis: {frequencies['percent_basis']}",
+    ]
+
+    for category in frequencies["categories"]:
+        lines.append(
+            f"{category['value']!r}: "
+            f"{category['count']} rows "
+            f"({category['percent']}%)"
+        )
+
+    lines.append(
+        f"Rows in unlisted categories: {frequencies['other_count']}"
+    )
+
+    return "\n".join(lines)

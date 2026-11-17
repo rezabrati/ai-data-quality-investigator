@@ -7,7 +7,26 @@ from agents import Agent, Runner, set_tracing_disabled, OpenAIChatCompletionsMod
 from agents.mcp import MCPServerStreamableHttp
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from ai_data_quality_investigator.reporting import render_profile_facts
+from ai_data_quality_investigator.reporting import render_profile_facts, render_category_facts
+
+
+def create_model() -> OpenAIChatCompletionsModel:
+    """Configure the model used by our agents."""
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise SystemExit("Missing GROQ_API_KEY in your .env file.")
+
+    client = AsyncOpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=api_key,
+        timeout=120.0,
+    )
+
+    return OpenAIChatCompletionsModel(
+        model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+        openai_client=client,
+    )
 
 
 async def main(dataset_id: str) -> None:
@@ -19,21 +38,7 @@ async def main(dataset_id: str) -> None:
     # Keep tracing off for this first version.
     set_tracing_disabled(True)
 
-    groq_api_key = os.getenv("GROQ_API_KEY")
-
-    if not groq_api_key:
-        raise SystemExit("Missing GROQ_API_KEY in your .env file.")
-
-    groq_client = AsyncOpenAI(
-        base_url="https://api.groq.com/openai/v1",
-        api_key=groq_api_key,
-        timeout=120.0,
-    )
-
-    model = OpenAIChatCompletionsModel(
-        model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
-        openai_client=groq_client,
-    )
+    model = create_model()
 
     async with MCPServerStreamableHttp(
         name="Dataset tools",
@@ -178,31 +183,7 @@ async def main(dataset_id: str) -> None:
                 ):
                     verified_categories = frequencies
         print(render_profile_facts(verified_profile))
-        if verified_categories is not None:
-            print(
-                "\nCATEGORY FREQUENCIES:",
-                verified_categories["column"],
-            )
-            print(
-                "Percentage basis:",
-                verified_categories["percent_basis"],
-            )
-
-            for category in verified_categories["categories"]:
-                print(
-                    f"{category['value']!r}: "
-                    f"{category['count']} rows "
-                    f"({category['percent']}%)"
-                )
-
-            print(
-                "Rows in unlisted categories:",
-                verified_categories["other_count"],
-            )
-        else:
-            print("\nNo matching category-frequency result available.")
-        print("\nDataset profile received and checked.")
-        print("Generating follow-up investigations...")
+        print(render_category_facts(verified_categories))
 
         reviewer = Agent(
             name="Follow-up Investigation Advisor",
