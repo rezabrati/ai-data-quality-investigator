@@ -16,6 +16,16 @@ type InvestigationResult = {
       }[];
     };
   };
+  category_frequencies: {
+    column: string;
+    percent_basis: string;
+    categories: {
+      value: string;
+      count: number;
+      percent: number;
+    }[];
+    other_count: number;
+  } | null;
   suggested_investigations: string;
 };
 
@@ -275,6 +285,49 @@ function App() {
                 </li>
               ))}
             </ul>
+          )}
+          
+          {investigation.category_frequencies && (
+            <div className="category-results">
+              <h3>
+                Category investigation:{" "}
+                {investigation.category_frequencies.column}
+              </h3>
+
+              <p>
+                Percentage basis:{" "}
+                {investigation.category_frequencies.percent_basis}
+              </p>
+
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Value</th>
+                      <th scope="col">Rows</th>
+                      <th scope="col">Percentage</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {investigation.category_frequencies.categories.map(
+                      (category, index) => (
+                        <tr key={`${category.value}-${index}`}>
+                          <td><code>{JSON.stringify(category.value)}</code></td>
+                          <td>{category.count.toLocaleString()}</td>
+                          <td>{category.percent.toFixed(2)}%</td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <p>
+                Rows in unlisted categories:{" "}
+                {investigation.category_frequencies.other_count.toLocaleString()}
+              </p>
+            </div>
           )}
 
           <div className="ai-suggestions">

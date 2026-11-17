@@ -193,3 +193,35 @@ summary {
 .ai-suggestions li {
   margin-bottom: 16px;
 }
+
+.category-results {
+  margin-top: 32px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #dfe5ef;
+}
+
+th {
+  background: #eef2ff;
+  font-size: 14px;
+}
+
+td:nth-child(2),
+td:nth-child(3),
+th:nth-child(2),
+th:nth-child(3) {
+  text-align: right;
+}
