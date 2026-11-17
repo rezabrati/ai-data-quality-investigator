@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import NumericCharts from "./NumericCharts";
+import CategoricalChart from "./CategoricalChart";
+
 
 type OutlierSummary =
   | {
@@ -195,6 +198,14 @@ export default function ColumnExplorer({ datasetId, columns }: Props) {
           </dl>
         </>
       )}
+      
+      {numeric && (
+        <NumericCharts
+            key={`${datasetId}-${selectedName}`}
+            datasetId={datasetId}
+            column={selectedName}
+        />
+        )}
 
       {numeric && (
         <details key={selectedName} className="numeric-details">
@@ -238,40 +249,47 @@ export default function ColumnExplorer({ datasetId, columns }: Props) {
       {showFrequencies &&
         frequencies &&
         frequencies.column === selectedName && (
-          <>
-            <h4>Most frequent values</h4>
-            <p>Percentage basis: {frequencies.percent_basis}</p>
+            <div className="categorical-layout">
+            <CategoricalChart
+                categories={frequencies.categories}
+                otherCount={frequencies.other_count}
+            />
 
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Value</th>
-                    <th scope="col">Rows</th>
-                    <th scope="col">Percentage</th>
-                  </tr>
-                </thead>
+            <article className="chart-card">
+                <h4>Most frequent values</h4>
+                <p>Percentage basis: {frequencies.percent_basis}</p>
 
-                <tbody>
-                  {frequencies.categories.map((category, index) => (
-                    <tr key={`${category.value}-${index}`}>
-                      <td>
-                        <code>{JSON.stringify(category.value)}</code>
-                      </td>
-                      <td>{category.count.toLocaleString()}</td>
-                      <td>{category.percent.toFixed(2)}%</td>
+                <div className="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th scope="col">Value</th>
+                        <th scope="col">Rows</th>
+                        <th scope="col">Percentage</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
 
-            <p>
-              Rows in unlisted values:{" "}
-              {frequencies.other_count.toLocaleString()}
-            </p>
-          </>
-        )}
+                    <tbody>
+                    {frequencies.categories.map((category, index) => (
+                        <tr key={`${category.value}-${index}`}>
+                        <td>
+                            <code>{JSON.stringify(category.value)}</code>
+                        </td>
+                        <td>{category.count.toLocaleString()}</td>
+                        <td>{category.percent.toFixed(2)}%</td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                </div>
+
+                <p>
+                Rows in unlisted values:{" "}
+                {frequencies.other_count.toLocaleString()}
+                </p>
+            </article>
+            </div>
+      )}
     </section>
   );
 }

@@ -420,3 +420,52 @@ th {
 .metric strong {
   font-size: 36px;
 }
+
+.numeric-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.chart-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #dfe5ef;
+  border-radius: 12px;
+  background: white;
+}
+
+.chart-card h4 {
+  margin: 0 0 12px;
+}
+
+.chart-card p {
+  font-size: 14px;
+}
+
+.categorical-chart {
+  margin-top: 24px;
+}
+
+.categorical-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+.categorical-layout .categorical-chart {
+  margin-top: 0;
+}
+
+.categorical-layout > * {
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .categorical-layout {
+    grid-template-columns: 1fr;
+  }
+}

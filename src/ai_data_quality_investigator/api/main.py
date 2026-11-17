@@ -6,7 +6,7 @@ from uuid import UUID
 import asyncio
 from ai_data_quality_investigator.storage import save_dataset, load_dataset, load_metadata
 from ai_data_quality_investigator.investigator import investigate_dataset
-from ai_data_quality_investigator.investigation import category_frequencies
+from ai_data_quality_investigator.investigation import category_frequencies, numeric_distribution
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -185,4 +185,41 @@ async def get_dataset_categories(
     return {
         "dataset_id": str(dataset_id),
         **frequencies,
+    }
+
+
+@app.get("/datasets/{dataset_id}/numeric-distribution")
+async def get_numeric_distribution(
+    dataset_id: UUID,
+    column: str = Query(..., min_length=1),
+    bins: int = Query(20, ge=1, le=100),
+):
+    """Return histogram and box-plot data for a numeric column."""
+    try:
+        content = await run_in_threadpool(
+            load_dataset,
+            str(dataset_id),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found.",
+        ) from exc
+
+    try:
+        distribution = await run_in_threadpool(
+            numeric_distribution,
+            content,
+            column,
+            bins,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "dataset_id": str(dataset_id),
+        **distribution,
     }
