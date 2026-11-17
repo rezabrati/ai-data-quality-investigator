@@ -125,7 +125,19 @@ async def profile_saved_dataset(
 
 @app.post("/datasets/{dataset_id}/investigate")
 async def investigate_saved_dataset(dataset_id: UUID):
+    # Check local storage before starting the agents.
+    try:
+        await run_in_threadpool(load_dataset, str(dataset_id))
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found.",
+        ) from exc
+
     try:
         return await investigate_dataset(str(dataset_id))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
