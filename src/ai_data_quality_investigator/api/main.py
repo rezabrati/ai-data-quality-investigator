@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, Form
+from fastapi import FastAPI, HTTPException, UploadFile, Form, Query
 from starlette.concurrency import run_in_threadpool
 from ai_data_quality_investigator.profiling import summarize_csv
 from typing import Literal
@@ -6,6 +6,7 @@ from uuid import UUID
 import asyncio
 from ai_data_quality_investigator.storage import save_dataset, load_dataset, load_metadata
 from ai_data_quality_investigator.investigator import investigate_dataset
+from ai_data_quality_investigator.investigation import category_frequencies
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -148,3 +149,40 @@ async def investigate_saved_dataset(dataset_id: UUID):
             status_code=400,
             detail=str(exc),
         ) from exc
+    
+
+@app.get("/datasets/{dataset_id}/categories")
+async def get_dataset_categories(
+    dataset_id: UUID,
+    column: str = Query(..., min_length=1),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """Return the most frequent values for a selected column."""
+    try:
+        content = await run_in_threadpool(
+            load_dataset,
+            str(dataset_id),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found.",
+        ) from exc
+
+    try:
+        frequencies = await run_in_threadpool(
+            category_frequencies,
+            content,
+            column,
+            limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return {
+        "dataset_id": str(dataset_id),
+        **frequencies,
+    }

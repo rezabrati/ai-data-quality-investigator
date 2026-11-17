@@ -1,10 +1,17 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
+import ColumnExplorer from "./ColumnExplorer";
+import TargetSummary from "./TargetSummary";
+import type { TargetProfile } from "./TargetSummary";
+import type { ColumnProfile } from "./ColumnExplorer";
+
 type InvestigationResult = {
   dataset_id: string;
   profile: {
     dataset_id: string;
     summary: {
+      target_summary: TargetProfile | null;
+      columns: ColumnProfile[];
       row_count: number;
       column_count: number;
       duplicate_row_count: number;
@@ -29,6 +36,15 @@ type InvestigationResult = {
   suggested_investigations: string;
 };
 
+const dashboardTabs = [
+  { id: "overview", label: "Overview" },
+  { id: "target", label: "Target" },
+  { id: "columns", label: "Columns" },
+  { id: "ai", label: "AI suggestions" },
+] as const;
+
+type DashboardTab = (typeof dashboardTabs)[number]["id"];
+
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -36,10 +52,20 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [targetColumn, setTargetColumn] = useState("");
   const [taskType, setTaskType] = useState<
-     "" | "classification" | "regression"
+    "" | "classification" | "regression"
   >("");
   const [investigating, setInvestigating] = useState(false);
-  const [investigation, setInvestigation] = useState<InvestigationResult | null>(null);
+  const [investigation, setInvestigation] =
+    useState<InvestigationResult | null>(null);
+  const [activeTab, setActiveTab] =
+    useState<DashboardTab>("overview");
+
+  function clearResults() {
+    setDatasetId(null);
+    setInvestigation(null);
+    setError(null);
+    setActiveTab("overview");
+  }
 
   async function uploadDataset() {
     if (!file || uploading || investigating) return;
@@ -47,14 +73,14 @@ function App() {
     const target = targetColumn.trim();
 
     if (Boolean(target) !== Boolean(taskType)) {
-      setError("Provide both target column and task type, or leave both empty.");
+      setError(
+        "Provide both target column and task type, or leave both empty."
+      );
       return;
     }
 
     setUploading(true);
-    setError(null);
-    setDatasetId(null);
-    setInvestigation(null);
+    clearResults();
 
     try {
       const formData = new FormData();
@@ -98,19 +124,20 @@ function App() {
 
   async function runInvestigation() {
     if (!datasetId || uploading || investigating) return;
-  
+
     setInvestigating(true);
     setInvestigation(null);
     setError(null);
-  
+    setActiveTab("overview");
+
     try {
       const response = await fetch(
         `/api/datasets/${datasetId}/investigate`,
         { method: "POST" }
       );
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
         throw new Error(
           typeof data.detail === "string"
@@ -118,7 +145,7 @@ function App() {
             : `Investigation failed (${response.status}).`
         );
       }
-  
+
       setInvestigation(data);
     } catch (err) {
       setError(
@@ -130,7 +157,7 @@ function App() {
       setInvestigating(false);
     }
   }
-  ////
+
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Dataset controls">
@@ -146,9 +173,7 @@ function App() {
             disabled={uploading || investigating}
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
-              setDatasetId(null);
-              setInvestigation(null);
-              setError(null);
+              clearResults();
             }}
           />
 
@@ -159,7 +184,9 @@ function App() {
             </div>
           )}
 
-          <label htmlFor="target-column">Target column (optional)</label>
+          <label htmlFor="target-column">
+            Target column (optional)
+          </label>
           <input
             id="target-column"
             type="text"
@@ -168,9 +195,7 @@ function App() {
             disabled={uploading || investigating}
             onChange={(event) => {
               setTargetColumn(event.target.value);
-              setDatasetId(null);
-              setInvestigation(null);
-              setError(null);
+              clearResults();
             }}
           />
 
@@ -190,9 +215,7 @@ function App() {
                 setTaskType(value);
               }
 
-              setDatasetId(null);
-              setInvestigation(null);
-              setError(null);
+              clearResults();
             }}
           >
             <option value="">No target analysis</option>
@@ -223,7 +246,9 @@ function App() {
                 onClick={runInvestigation}
                 disabled={uploading || investigating}
               >
-                {investigating ? "Investigating…" : "Run investigation"}
+                {investigating
+                  ? "Investigating…"
+                  : "Run investigation"}
               </button>
             </>
           )}
@@ -262,118 +287,135 @@ function App() {
         )}
 
         {investigation !== null && (
-          <section className="card">
-            <h2>Investigation results</h2>
+          <section className="card dashboard-results">
+            <h2>Dataset dashboard</h2>
 
-            <div className="metrics">
-              <div className="metric">
-                <span>Rows</span>
-                <strong>
-                  {investigation.profile.summary.row_count.toLocaleString()}
-                </strong>
-              </div>
+            <nav
+              className="dashboard-tabs"
+              aria-label="Dashboard sections"
+            >
+              {dashboardTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`dashboard-tab ${
+                    activeTab === tab.id ? "is-active" : ""
+                  }`}
+                  aria-pressed={activeTab === tab.id}
+                  aria-controls="dashboard-panel"
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
 
-              <div className="metric">
-                <span>Columns</span>
-                <strong>
-                  {investigation.profile.summary.column_count}
-                </strong>
-              </div>
+            <div
+              id="dashboard-panel"
+              className="dashboard-panel"
+              role="region"
+              aria-label={
+                dashboardTabs.find((tab) => tab.id === activeTab)?.label
+              }
+            >
+              {activeTab === "overview" && (
+                <>
+                  <div className="metrics">
+                    <div className="metric">
+                      <span>Rows</span>
+                      <strong>
+                        {investigation.profile.summary.row_count.toLocaleString()}
+                      </strong>
+                    </div>
 
-              <div className="metric">
-                <span>Duplicate rows</span>
-                <strong>
-                  {investigation.profile.summary.duplicate_row_count}
-                </strong>
-              </div>
+                    <div className="metric">
+                      <span>Columns</span>
+                      <strong>
+                        {investigation.profile.summary.column_count}
+                      </strong>
+                    </div>
 
-              <div className="metric">
-                <span>Findings</span>
-                <strong>
-                  {investigation.profile.summary.findings.length}
-                </strong>
-              </div>
-            </div>
+                    <div className="metric">
+                      <span>Duplicate rows</span>
+                      <strong>
+                        {investigation.profile.summary.duplicate_row_count.toLocaleString()}
+                      </strong>
+                    </div>
 
-            <h3>Quality findings</h3>
-            <p>
-              These checks identify review candidates. Outliers and
-              placeholders are not automatically errors.
-            </p>
+                    <div className="metric">
+                      <span>Findings</span>
+                      <strong>
+                        {investigation.profile.summary.findings.length}
+                      </strong>
+                    </div>
+                  </div>
 
-            {investigation.profile.summary.findings.length === 0 ? (
-              <p>No findings were reported by the implemented checks.</p>
-            ) : (
-              <ul className="findings">
-                {investigation.profile.summary.findings.map(
-                  (finding, index) => (
-                    <li
-                      key={`${finding.code}-${finding.column}-${index}`}
-                    >
-                      {finding.message}
-                    </li>
-                  )
-                )}
-              </ul>
-            )}
+                  <h3>Quality findings</h3>
+                  <p>
+                    These checks identify review candidates. Outliers
+                    and placeholders are not automatically errors.
+                  </p>
 
-            {investigation.category_frequencies && (
-              <div className="category-results">
-                <h3>
-                  Category investigation:{" "}
-                  {investigation.category_frequencies.column}
-                </h3>
-
-                <p>
-                  Percentage basis:{" "}
-                  {investigation.category_frequencies.percent_basis}
-                </p>
-
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th scope="col">Value</th>
-                        <th scope="col">Rows</th>
-                        <th scope="col">Percentage</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {investigation.category_frequencies.categories.map(
-                        (category, index) => (
-                          <tr key={`${category.value}-${index}`}>
-                            <td>
-                              <code>
-                                {JSON.stringify(category.value)}
-                              </code>
-                            </td>
-                            <td>{category.count.toLocaleString()}</td>
-                            <td>{category.percent.toFixed(2)}%</td>
-                          </tr>
+                  {investigation.profile.summary.findings.length === 0 ? (
+                    <p>
+                      No findings were reported by the implemented checks.
+                    </p>
+                  ) : (
+                    <ul className="findings">
+                      {investigation.profile.summary.findings.map(
+                        (finding, index) => (
+                          <li
+                            key={`${finding.code}-${finding.column}-${index}`}
+                          >
+                            {finding.message}
+                          </li>
                         )
                       )}
-                    </tbody>
-                  </table>
-                </div>
+                    </ul>
+                  )}
+                </>
+              )}
 
-                <p>
-                  Rows in unlisted categories:{" "}
-                  {investigation.category_frequencies.other_count.toLocaleString()}
-                </p>
+              {activeTab === "target" && (
+                investigation.profile.summary.target_summary ? (
+                  <TargetSummary
+                    target={
+                      investigation.profile.summary.target_summary
+                    }
+                  />
+                ) : (
+                  <div className="tab-empty">
+                    <h3>No target configured</h3>
+                    <p>
+                      To include target analysis, upload the dataset
+                      with a target column and task type.
+                    </p>
+                  </div>
+                )
+              )}
+
+              {/* Keep mounted to preserve the selected column. */}
+              <div hidden={activeTab !== "columns"}>
+                <ColumnExplorer
+                  key={investigation.dataset_id}
+                  datasetId={investigation.dataset_id}
+                  columns={investigation.profile.summary.columns}
+                />
               </div>
-            )}
 
-            <div className="ai-suggestions">
-              <h3>Suggested investigations</h3>
-              <p className="ai-label">
-                AI-generated questions for further review. These checks
-                have not been performed.
-              </p>
+              {activeTab === "ai" && (
+                <div className="ai-suggestions">
+                  <h3>Suggested investigations</h3>
+                  <p className="ai-label">
+                    AI-generated questions for further review.
+                    These checks have not been performed.
+                  </p>
 
-              <Markdown skipHtml>
-                {investigation.suggested_investigations}
-              </Markdown>
+                  <Markdown skipHtml>
+                    {investigation.suggested_investigations}
+                  </Markdown>
+                </div>
+              )}
             </div>
 
             <details>
