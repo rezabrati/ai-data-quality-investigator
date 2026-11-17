@@ -3,6 +3,7 @@ from starlette.concurrency import run_in_threadpool
 from ai_data_quality_investigator.profiling import summarize_csv
 from typing import Literal
 from uuid import UUID
+import asyncio
 from ai_data_quality_investigator.storage import save_dataset, load_dataset, load_metadata
 from ai_data_quality_investigator.investigator import investigate_dataset
 
@@ -135,7 +136,13 @@ async def investigate_saved_dataset(dataset_id: UUID):
         ) from exc
 
     try:
-        return await investigate_dataset(str(dataset_id))
+        async with asyncio.timeout(180):
+            return await investigate_dataset(str(dataset_id))
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=504,
+            detail="Investigation timed out. Please try again.",
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
