@@ -8,6 +8,7 @@ from agents.mcp import MCPServerStreamableHttp
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from ai_data_quality_investigator.reporting import render_profile_facts, render_category_facts
+from ai_data_quality_investigator.evidence import extract_verified_profile
 
 
 def create_model() -> OpenAIChatCompletionsModel:
@@ -90,51 +91,7 @@ async def main(dataset_id: str) -> None:
                 )
 
         # Match tool results to the profiling calls that requested them.
-        profile_call_ids = set()
-        verified_profile = None
-
-        for item in result.new_items:
-            if item.type == "tool_call_item":
-                call = item.raw_item
-
-                if call.name == "profile_dataset":
-                    arguments = json.loads(call.arguments)
-
-                    if arguments.get("dataset_id") == dataset_id:
-                        profile_call_ids.add(call.call_id)
-
-            elif item.type == "tool_call_output_item":
-                if item.raw_item.get("call_id") not in profile_call_ids:
-                    continue
-
-                output = item.output
-
-                if not isinstance(output, dict):
-                    continue
-
-                if output.get("type") != "text":
-                    continue
-
-                try:
-                    profile = json.loads(output.get("text", ""))
-                except (json.JSONDecodeError, TypeError):
-                    continue
-
-                if not isinstance(profile, dict):
-                    continue
-
-                summary = profile.get("summary")
-
-                if (
-                    profile.get("dataset_id") == dataset_id
-                    and isinstance(summary, dict)
-                    and isinstance(summary.get("columns"), list)
-                    and isinstance(summary.get("findings"), list)
-                    and type(summary.get("row_count")) is int
-                    and type(summary.get("column_count")) is int
-                ):
-                    verified_profile = profile
-
+        verified_profile = extract_verified_profile(result.new_items, dataset_id)
         if verified_profile is None:
             raise SystemExit(
                 "Report withheld: no matching dataset profile was returned."
