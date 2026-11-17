@@ -1,0 +1,119 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #172033;
+  background: #f4f7fb;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.badge {
+  color: #4338ca;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+h1 {
+  font-size: clamp(30px, 5vw, 44px);
+  letter-spacing: -1.5px;
+  margin: 16px 0;
+}
+
+p {
+  color: #596579;
+  line-height: 1.6;
+}
+
+.card {
+  margin-top: 36px;
+  padding: 32px;
+  background: white;
+  border: 1px solid #dfe5ef;
+  border-radius: 16px;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+label {
+  display: block;
+  margin: 24px 0 10px;
+  font-weight: 600;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 16px;
+  border: 1px dashed #a7b2c5;
+  border-radius: 8px;
+}
+
+.selection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  background: #eef2ff;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+button {
+  margin-top: 24px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #4338ca;
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #3730a3;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 3px;
+}
+
+[role="alert"] {
+  color: #b42318;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+input[type="text"],
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #a7b2c5;
+  border-radius: 8px;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
