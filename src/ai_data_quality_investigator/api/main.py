@@ -4,6 +4,7 @@ from ai_data_quality_investigator.profiling import summarize_csv
 from typing import Literal
 from uuid import UUID
 from ai_data_quality_investigator.storage import save_dataset, load_dataset, load_metadata
+from ai_data_quality_investigator.investigator import investigate_dataset
 
 app = FastAPI(title="AI Data Quality Investigator")
 
@@ -121,3 +122,10 @@ async def profile_saved_dataset(
         "dataset_id": str(dataset_id),
         "summary": summary,
     }
+
+@app.post("/datasets/{dataset_id}/investigate")
+async def investigate_saved_dataset(dataset_id: UUID):
+    try:
+        return await investigate_dataset(str(dataset_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
