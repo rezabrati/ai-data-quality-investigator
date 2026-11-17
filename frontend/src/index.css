@@ -13,9 +13,61 @@ body {
   margin: 0;
 }
 
-.container {
-  max-width: 960px;
+.app-shell {
+  display: grid;
+  grid-template-columns: 540px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  min-width: 0;
+  padding: 28px 24px;
+  background: white;
+  border-right: 1px solid #dfe5ef;
+}
+
+.sidebar .card {
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sidebar h2 {
+  font-size: 22px;
+}
+
+.sidebar button {
+  width: 100%;
+}
+
+.sidebar input,
+.sidebar select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sidebar [role="status"],
+.sidebar [role="alert"] {
+  overflow-wrap: anywhere;
+}
+
+.sidebar .selection {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.main-content {
+  min-width: 0;
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
+  padding: 40px;
+}
+
+.empty-state {
+  text-align: center;
   padding: 64px 24px;
 }
 
