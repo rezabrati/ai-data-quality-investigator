@@ -57,3 +57,67 @@ def extract_verified_profile(items: list, dataset_id: str) -> dict | None:
                 verified_profile = profile
 
     return verified_profile
+
+def extract_verified_categories(
+    items: list,
+    dataset_id: str,
+    row_count: int,
+) -> dict | None:
+    """Find a category result matching its call and dataset."""
+    category_calls = {}
+    verified_categories = None
+
+    for item in items:
+        if item.type == "tool_call_item":
+            call = item.raw_item
+
+            if call.name != "get_category_frequencies":
+                continue
+
+            try:
+                arguments = json.loads(call.arguments)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            if not isinstance(arguments, dict):
+                continue
+
+            column = arguments.get("column")
+
+            if (
+                arguments.get("dataset_id") == dataset_id
+                and isinstance(column, str)
+            ):
+                category_calls[call.call_id] = column
+
+        elif item.type == "tool_call_output_item":
+            call_id = item.raw_item.get("call_id")
+
+            if call_id not in category_calls:
+                continue
+
+            output = item.output
+
+            if not isinstance(output, dict):
+                continue
+
+            if output.get("type") != "text":
+                continue
+
+            try:
+                frequencies = json.loads(output.get("text", ""))
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            if not isinstance(frequencies, dict):
+                continue
+
+            if (
+                frequencies.get("dataset_id") == dataset_id
+                and frequencies.get("column") == category_calls[call_id]
+                and frequencies.get("row_count") == row_count
+                and isinstance(frequencies.get("categories"), list)
+            ):
+                verified_categories = frequencies
+
+    return verified_categories

@@ -8,7 +8,7 @@ from agents.mcp import MCPServerStreamableHttp
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from ai_data_quality_investigator.reporting import render_profile_facts, render_category_facts
-from ai_data_quality_investigator.evidence import extract_verified_profile
+from ai_data_quality_investigator.evidence import extract_verified_profile, extract_verified_categories
 
 
 def create_model() -> OpenAIChatCompletionsModel:
@@ -96,49 +96,8 @@ async def main(dataset_id: str) -> None:
             raise SystemExit(
                 "Report withheld: no matching dataset profile was returned."
             )
-        category_calls = {}
-        verified_categories = None
-
-        for item in result.new_items:
-            if item.type == "tool_call_item":
-                call = item.raw_item
-
-                if call.name == "get_category_frequencies":
-                    arguments = json.loads(call.arguments)
-
-                    if arguments.get("dataset_id") == dataset_id:
-                        category_calls[call.call_id] = arguments["column"]
-
-            elif item.type == "tool_call_output_item":
-                call_id = item.raw_item.get("call_id")
-
-                if call_id not in category_calls:
-                    continue
-
-                output = item.output
-
-                if not isinstance(output, dict):
-                    continue
-
-                if output.get("type") != "text":
-                    continue
-
-                try:
-                    frequencies = json.loads(output.get("text", ""))
-                except (json.JSONDecodeError, TypeError):
-                    continue
-
-                if not isinstance(frequencies, dict):
-                    continue
-
-                if (
-                    frequencies.get("dataset_id") == dataset_id
-                    and frequencies.get("column") == category_calls[call_id]
-                    and frequencies.get("row_count")
-                    == verified_profile["summary"]["row_count"]
-                    and isinstance(frequencies.get("categories"), list)
-                ):
-                    verified_categories = frequencies
+        verified_categories = extract_verified_categories(result.new_items, dataset_id, verified_profile["summary"]["row_count"])
+        
         print(render_profile_facts(verified_profile))
         print(render_category_facts(verified_categories))
 
