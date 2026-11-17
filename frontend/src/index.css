@@ -117,3 +117,79 @@ select {
   color: inherit;
   font: inherit;
 }
+
+.json-result {
+  max-height: 600px;
+  overflow: auto;
+  padding: 20px;
+  background: #f4f7fb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 24px 0 32px;
+}
+
+.metric {
+  padding: 20px;
+  background: #eef2ff;
+  border-radius: 12px;
+}
+
+.metric span {
+  display: block;
+  color: #596579;
+  font-size: 14px;
+}
+
+.metric strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 28px;
+}
+
+.findings {
+  padding-left: 24px;
+  line-height: 1.7;
+}
+
+.findings li {
+  margin-bottom: 12px;
+}
+
+details {
+  margin-top: 28px;
+}
+
+summary {
+  cursor: pointer;
+  color: #4338ca;
+  font-weight: 600;
+}
+
+.ai-suggestions {
+  margin-top: 32px;
+  padding: 24px;
+  background: #f8f7ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.ai-suggestions h3 {
+  margin-top: 0;
+}
+
+.ai-label {
+  font-size: 14px;
+  color: #65558f;
+}
+
+.ai-suggestions li {
+  margin-bottom: 16px;
+}
