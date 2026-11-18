@@ -4,7 +4,7 @@ import sys
 from uuid import UUID
 import json
 from agents import Agent, Runner, set_tracing_disabled, OpenAIChatCompletionsModel
-from agents.mcp import MCPServerStreamableHttp
+from ai_data_quality_investigator.tool_limits import LimitedMCPServer
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from ai_data_quality_investigator.reporting import render_profile_facts, render_category_facts
@@ -41,7 +41,7 @@ async def investigate_dataset(dataset_id: str) -> dict[str, object]:
 
     model = create_model()
 
-    async with MCPServerStreamableHttp(
+    async with LimitedMCPServer(
         name="Dataset tools",
         params={
             "url": os.getenv(
@@ -51,6 +51,7 @@ async def investigate_dataset(dataset_id: str) -> dict[str, object]:
         },
         cache_tools_list=True,
         client_session_timeout_seconds=60,
+        max_retry_attempts=0,
     ) as server:
         agent = Agent(
             name="Data Quality Investigator",
@@ -172,7 +173,7 @@ async def main(dataset_id: str) -> None:
 
     print(render_profile_facts(investigation["profile"]))
     print(render_category_facts(investigation["category_frequencies"]))
-    
+
     comparison = investigation["target_comparison"]
 
     if comparison is not None:
