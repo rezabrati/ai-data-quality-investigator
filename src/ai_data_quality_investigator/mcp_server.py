@@ -8,6 +8,9 @@ from ai_data_quality_investigator.storage import (
     load_dataset,
     load_metadata,
 )
+from ai_data_quality_investigator.investigation import (
+    compare_target_by_category as calculate_target_by_category,
+)
 
 mcp = MCPServer("Data Quality Investigator")
 
@@ -77,6 +80,52 @@ async def get_category_frequencies(
         **frequencies,
     }
 
+@mcp.tool()
+async def compare_target_by_category(
+    dataset_id: UUID,
+    column: str,
+    limit: int = 10,
+) -> dict:
+    """Compare classification target distributions within feature categories.
+
+    Use this to investigate whether observed class proportions differ
+    across categorical feature values. Results describe associations;
+    they do not establish causation or confirm leakage.
+    """
+    try:
+        content = await run_in_threadpool(
+            load_dataset,
+            str(dataset_id),
+        )
+        metadata = await run_in_threadpool(
+            load_metadata,
+            str(dataset_id),
+        )
+    except FileNotFoundError as exc:
+        raise ValueError("Dataset not found.") from exc
+
+    target_column = metadata.get("target_column")
+
+    if (
+        metadata.get("task_type") != "classification"
+        or not target_column
+    ):
+        raise ValueError(
+            "This tool requires a saved classification target."
+        )
+
+    comparison = await run_in_threadpool(
+        calculate_target_by_category,
+        content,
+        column,
+        target_column,
+        limit,
+    )
+
+    return {
+        "dataset_id": str(dataset_id),
+        **comparison,
+    }
 
 if __name__ == "__main__":
     mcp.run(
