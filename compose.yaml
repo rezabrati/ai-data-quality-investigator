@@ -56,6 +56,7 @@ services:
       MCP_SERVER_URL: "http://mcp:8001/mcp"
       DATA_STORAGE_DIR: "/app/data/datasets"
       PYTHONPATH: "/app/src"
+      DUCKDB_MCP_URL: "http://duckdb:8000/mcp"
 
     volumes:
       - ./data/datasets:/app/data/datasets
@@ -65,6 +66,8 @@ services:
 
     depends_on:
       mcp:
+        condition: service_healthy
+      duckdb:
         condition: service_healthy
 
     develop:
@@ -130,3 +133,27 @@ services:
           path: ./frontend/package-lock.json
 
     init: true
+
+  duckdb:
+    build:
+      context: .
+      dockerfile: Dockerfile.duckdb
+
+    ports:
+      - "127.0.0.1:8002:8000"
+
+    volumes:
+      - ./data/datasets:/datasets:ro
+
+    init: true
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2).close()"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
