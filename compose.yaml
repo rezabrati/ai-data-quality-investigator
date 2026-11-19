@@ -1,0 +1,132 @@
+x-python-watch: &python-watch
+  - action: sync+restart
+    path: ./src
+    target: /app/src
+
+  - action: rebuild
+    path: ./pyproject.toml
+
+  - action: rebuild
+    path: ./uv.lock
+
+services:
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+
+    command:
+      - python
+      - -m
+      - ai_data_quality_investigator.mcp_server
+
+    environment:
+      MCP_HOST: "0.0.0.0"
+      MCP_PORT: "8001"
+      DATA_STORAGE_DIR: "/app/data/datasets"
+      PYTHONPATH: "/app/src"
+
+    volumes:
+      - ./data/datasets:/app/data/datasets:ro
+
+    develop:
+      watch: *python-watch
+
+    init: true
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=2).close()"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+
+    environment:
+      GROQ_API_KEY: "${GROQ_API_KEY:?Set GROQ_API_KEY in your root .env file}"
+      GROQ_MODEL: "${GROQ_MODEL:-openai/gpt-oss-120b}"
+      MCP_SERVER_URL: "http://mcp:8001/mcp"
+      DATA_STORAGE_DIR: "/app/data/datasets"
+      PYTHONPATH: "/app/src"
+
+    volumes:
+      - ./data/datasets:/app/data/datasets
+
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    depends_on:
+      mcp:
+        condition: service_healthy
+
+    develop:
+      watch: *python-watch
+
+    init: true
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: build
+
+    command:
+      - npm
+      - run
+      - dev
+      - --
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "5173"
+
+    environment:
+      API_PROXY_TARGET: "http://backend:8000"
+
+    ports:
+      - "127.0.0.1:8080:5173"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+            - dist/
+            - .git/
+            - .env
+            - .env.*
+            - package.json
+            - package-lock.json
+
+        - action: rebuild
+          path: ./frontend/package.json
+
+        - action: rebuild
+          path: ./frontend/package-lock.json
+
+    init: true

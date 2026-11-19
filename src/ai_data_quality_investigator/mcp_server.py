@@ -1,4 +1,5 @@
 from uuid import UUID
+import os
 
 from mcp.server import MCPServer
 from starlette.concurrency import run_in_threadpool
@@ -130,6 +131,6 @@ async def compare_target_by_category(
 if __name__ == "__main__":
     mcp.run(
         transport="streamable-http",
-        host="127.0.0.1",
-        port=8001,
+        host=os.getenv("MCP_HOST", "127.0.0.1"),
+        port=int(os.getenv("MCP_PORT", "8001")),
     )
